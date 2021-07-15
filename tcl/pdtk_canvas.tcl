@@ -4,6 +4,12 @@ package provide pdtk_canvas 0.1
 package require pd_bindings
 
 namespace eval ::pdtk_canvas:: {
+
+    # the untitled name prefix pd checks for using a macro in g_canvas.h,
+    # a saveas panel is shown when saving a file with this name
+    variable untitled_name "PDUNTITLED"
+    variable untitled_len 10
+
     namespace export pdtk_canvas_popup
     namespace export pdtk_canvas_editmode
     namespace export pdtk_canvas_getscroll
@@ -176,6 +182,7 @@ proc pdtk_canvas_raise {mytoplevel} {
 proc pdtk_canvas_saveas {name initialfile initialdir destroyflag} {
     if { ! [file isdirectory $initialdir]} {set initialdir $::filenewdir}
     set filename [tk_getSaveFile -initialdir $initialdir \
+                      -initialfile [::pdtk_canvas::cleanname "$initialfile"] \
                       -defaultextension .pd -filetypes $::filetypes]
     if {$filename eq ""} return; # they clicked cancel
 
@@ -427,9 +434,10 @@ proc ::pdtk_canvas::pdtk_canvas_setparents {mytoplevel args} {
     }
 }
 
-# receive information for setting the info the the title bar of the window
+# receive information for setting the info in the title bar of the window
 proc ::pdtk_canvas::pdtk_canvas_reflecttitle {mytoplevel \
                                               path name arguments dirty} {
+    set name [::pdtk_canvas::cleanname "$name"]
     set ::windowname($mytoplevel) $name
     set ::pdtk_canvas::::window_fullname($mytoplevel) "$path/$name"
     if {$::windowingsystem eq "aqua"} {
@@ -451,4 +459,17 @@ proc ::pdtk_canvas::pdtk_canvas_reflecttitle {mytoplevel \
 # get color value for pd
 proc ::pdtk_canvas::get_color {type {window 0}} {
 	return $::pd_colors($type)
+}
+# utils
+
+# provide a clean filename to avoid saving files with the untitled name prefix
+proc ::pdtk_canvas::cleanname {name} {
+    variable untitled_name
+    variable untitled_len
+    if {[string compare -length $untitled_len "$name" "$untitled_name"] == 0} {
+        # replace untitled prefix with a display name
+        # TODO localize "Untitled" & make sure translations do not contain spaces
+        return [string replace "$name" 0 [expr $untitled_len - 1] "Untitled"]
+    }
+    return $name
 }
